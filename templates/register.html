@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account – Xsome Complaint System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+</head>
+
+<body
+    style="background:var(--bg); background-image:radial-gradient(ellipse at 70% 20%, rgba(168,85,247,0.1) 0%, transparent 50%), radial-gradient(ellipse at 20% 80%, rgba(244,63,94,0.07) 0%, transparent 50%); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem;">
+
+    <div class="animate-up" style="width:100%; max-width:520px;">
+        <div class="auth-card">
+            <div style="text-align:center; margin-bottom:2.5rem;">
+                <a href="{{ url_for('home') }}" class="logo"
+                    style="font-size:2rem; display:inline-block; margin-bottom:0.75rem;">
+                    <i class="fa-solid fa-building-shield"></i> Xsome Complaint System
+                </a>
+                <p style="color:var(--text-muted);">Join thousands of citizens making an impact.</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}{% for category, message in messages %}
+            <div class="alert alert-{{ category }}" style="margin-bottom:1.5rem;">
+                <i class="fa-solid fa-circle-info"></i> {{ message }}
+            </div>
+            {% endfor %}{% endif %}{% endwith %}
+
+            <form method="POST" action="{{ url_for('register') }}">
+                <div class="grid-2" style="margin-bottom:0;">
+                    <div class="form-group">
+                        <label class="form-label" for="username"><i class="fa-solid fa-user"></i> Username</label>
+                        <input type="text" class="form-control" id="username" name="username" placeholder="johndoe"
+                            required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="phone"><i class="fa-solid fa-phone"></i> Phone Number</label>
+                        <input type="tel" class="form-control" id="phone" name="phone" placeholder="9876543210" required
+                            pattern="[0-9]{10,15}">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="email"><i class="fa-solid fa-envelope"></i> Email Address</label>
+                    <input type="email" class="form-control" id="email" name="email" placeholder="name@example.com"
+                        required autocomplete="email">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password"><i class="fa-solid fa-lock"></i> Password</label>
+                    <input type="password" class="form-control" id="password" name="password"
+                        placeholder="Min. 6 characters" required minlength="6" autocomplete="new-password">
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full"
+                    style="padding:0.9rem; font-size:1rem; margin-top:0.5rem;">
+                    <i class="fa-solid fa-check-double"></i> Create My Account
+                </button>
+            </form>
+
+            <div
+                style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--border); text-align:center; color:var(--text-muted); font-size:0.9rem;">
+                Already have an account?
+                <a href="{{ url_for('login') }}" style="color:var(--primary); font-weight:700; margin-left:0.3rem;">Sign
+                    In</a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

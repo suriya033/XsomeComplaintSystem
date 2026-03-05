@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Dashboard – Xsome Complaint System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Notification Panel -->
+    <div class="notif-panel" id="notifPanel">
+        <div class="notif-panel-header">
+            <h6><i class="fa-solid fa-bell"></i> Notifications</h6>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+                <button class="btn btn-sm btn-ghost" onclick="markAllRead()"
+                    style="font-size:0.75rem; padding:0.25rem 0.6rem;">Mark All Read</button>
+                <button class="btn btn-sm btn-ghost" onclick="closeNotifPanel()" style="padding:0.25rem 0.6rem;"><i
+                        class="fa-solid fa-times"></i></button>
+            </div>
+        </div>
+        <div class="notif-list" id="notifList">
+            {% for notif in notifications %}
+            <div class="notif-item {{ 'unread' if not notif.is_read }} {{ 'escalation' if notif.notif_type == 'escalation' }}"
+                id="notif-{{ notif.id }}" onclick="markOneRead({{ notif.id }})">
+                <div class="notif-msg">
+                    {% if notif.notif_type == 'escalation' %}<i class="fa-solid fa-triangle-exclamation"
+                        style="color:#ef4444;"></i>
+                    {% elif notif.notif_type == 'status_update' %}<i class="fa-solid fa-rotate"
+                        style="color:#3b82f6;"></i>
+                    {% else %}<i class="fa-solid fa-check-circle" style="color:#22c55e;"></i>{% endif %}
+                    {{ notif.message }}
+                </div>
+                <div class="notif-time">{{ notif.created_at.strftime('%b %d, %H:%M') }}</div>
+            </div>
+            {% else %}
+            <div style="text-align:center; padding:3rem; color:var(--text-dim);">
+                <i class="fa-solid fa-bell-slash" style="font-size:2rem; margin-bottom:0.75rem; display:block;"></i>
+                No notifications yet
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="{{ url_for('home') }}" class="logo"><i class="fa-solid fa-building-shield"></i> Xsome Complaint
+                System</a>
+            <div class="nav-links">
+                <a href="{{ url_for('user_dashboard') }}" class="active"><i class="fa-solid fa-folder-open"></i>
+                    <span>My Complaints</span></a>
+                <a href="{{ url_for('submit_complaint') }}"><i class="fa-solid fa-plus-circle"></i> <span>New
+                        Complaint</span></a>
+                <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()">
+                    <i class="fa-solid fa-bell"></i>
+                    <span class="notif-badge" id="notifCount"
+                        style="{{ 'display:none' if not notifications or notifications|selectattr('is_read', 'eq', False)|list|length == 0 }}">
+                        {{ notifications|selectattr('is_read', 'eq', False)|list|length if notifications else 0 }}
+                    </span>
+                </button>
+                <a href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> <span>Logout</span></a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Content -->
+    <div class="container animate-up" style="padding:2.5rem 0 4rem;">
+        <!-- Header -->
+        <div
+            style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; margin-bottom:2rem; padding-bottom:1.5rem; border-bottom:1px solid var(--border);">
+            <div>
+                <h1 style="font-size:2.2rem; font-weight:900; letter-spacing:-0.04em;">My Dashboard</h1>
+                <div style="display:flex; align-items:center; gap:1rem; margin-top:0.4rem;">
+                    <span style="color:var(--text-muted);">Hello, {{ current_user.username }}</span>
+                    <span class="live-indicator"><span class="live-dot"></span> Live Updates Active</span>
+                </div>
+            </div>
+            <a href="{{ url_for('submit_complaint') }}" class="btn btn-primary">
+                <i class="fa-solid fa-plus"></i> New Complaint
+            </a>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for category, message in messages %}
+        <div class="alert alert-{{ category }}"><i class="fa-solid fa-circle-info"></i> {{ message }}</div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        <!-- Resolved feedback prompts -->
+        {% for complaint in complaints %}
+        {% if complaint.status == 'Resolved' and not complaint.feedback %}
+        <div class="alert alert-success" style="justify-content:space-between; flex-wrap:wrap; gap:0.75rem;">
+            <span><i class="fa-solid fa-wand-magic-sparkles"></i> Complaint <strong>#{{ complaint.id }}</strong>
+                resolved! Share your experience.</span>
+            <a href="{{ url_for('submit_feedback', complaint_id=complaint.id) }}" class="btn btn-sm"
+                style="background:#22c55e; color:white; padding:0.4rem 1rem;">
+                <i class="fa-solid fa-star"></i> Rate Service
+            </a>
+        </div>
+        {% endif %}
+        {% endfor %}
+
+        <!-- Stats Strip -->
+        <div class="stats-grid" style="margin-bottom:2rem;">
+            <div class="kpi-card" style="--accent-bar:#6366f1;">
+                <div class="kpi-label"><i class="fa-solid fa-folder"></i> Total Submitted</div>
+                <div class="kpi-value">{{ complaints|length }}</div>
+            </div>
+            <div class="kpi-card" style="--accent-bar:#f59e0b;">
+                <div class="kpi-label"><i class="fa-solid fa-clock"></i> Pending</div>
+                <div class="kpi-value">{{ complaints|selectattr('status', 'eq', 'Pending')|list|length }}</div>
+            </div>
+            <div class="kpi-card" style="--accent-bar:#3b82f6;">
+                <div class="kpi-label"><i class="fa-solid fa-spinner"></i> In Progress</div>
+                <div class="kpi-value">{{ complaints|selectattr('status', 'eq', 'In Progress')|list|length }}</div>
+            </div>
+            <div class="kpi-card" style="--accent-bar:#22c55e;">
+                <div class="kpi-label"><i class="fa-solid fa-circle-check"></i> Resolved</div>
+                <div class="kpi-value">{{ complaints|selectattr('status', 'eq', 'Resolved')|list|length }}</div>
+            </div>
+        </div>
+
+        <!-- Complaints Table -->
+        <div class="table-wrapper">
+            <div
+                style="padding:1.25rem 1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h5 style="font-weight:700; font-size:0.95rem;"><i class="fa-solid fa-list-check"></i> My Complaints
+                </h5>
+                <span class="badge badge-gray">{{ complaints|length }} Total</span>
+            </div>
+            <div class="overflow-x">
+                <table class="data-table" id="complaintsTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Details</th>
+                            <th>Category</th>
+                            <th>Priority</th>
+                            <th>SLA Deadline</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="complaintsBody">
+                        {% for complaint in complaints %}
+                        <tr id="row-{{ complaint.id }}"
+                            class="{% if complaint.is_escalated and complaint.status != 'Resolved' %}escalated{% elif complaint.status == 'Resolved' %}row-resolved{% elif complaint.status == 'In Progress' %}row-progress{% endif %}">
+                            <td style="font-weight:700; color:var(--primary);">#{{ complaint.id }}</td>
+                            <td>
+                                <div
+                                    style="font-weight:600; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                    {{ complaint.title }}</div>
+                                <div
+                                    style="font-size:0.78rem; color:var(--text-muted); margin-top:0.2rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                    {{ complaint.description[:60] }}{% if complaint.description|length > 60 %}...{%
+                                    endif %}
+                                </div>
+                                <div style="font-size:0.72rem; color:var(--text-dim); margin-top:0.2rem;">
+                                    <i class="fa-solid fa-location-dot"></i> {{ complaint.location }} &bull; {{
+                                    complaint.zone }}
+                                </div>
+                                {% if complaint.ai_vision_status and "Verified" in complaint.ai_vision_status %}
+                                <span class="badge badge-success" style="font-size:0.65rem; margin-top:0.3rem;"><i
+                                        class="fa-solid fa-check-circle"></i> AI Verified</span>
+                                {% endif %}
+                                {% if complaint.is_duplicate %}
+                                <span class="badge badge-warning" style="font-size:0.65rem; margin-top:0.3rem;"><i
+                                        class="fa-solid fa-copy"></i> Possible Duplicate</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge badge-purple">
+                                    {% if complaint.category == 'Electricity' %}<i class="fa-solid fa-bolt"></i>
+                                    {% elif complaint.category == 'Water' %}<i class="fa-solid fa-droplet"></i>
+                                    {% elif complaint.category == 'Road' %}<i class="fa-solid fa-road"></i>
+                                    {% elif complaint.category == 'Sanitation' %}<i class="fa-solid fa-trash"></i>
+                                    {% else %}<i class="fa-solid fa-circle-dot"></i>{% endif %}
+                                    {{ complaint.category }}
+                                </span>
+                            </td>
+                            <td>
+                                <span
+                                    class="badge {% if complaint.priority == 'High' %}badge-danger{% elif complaint.priority == 'Medium' %}badge-warning{% else %}badge-success{% endif %}">
+                                    <span class="priority-dot"
+                                        style="background:{% if complaint.priority == 'High' %}#ef4444{% elif complaint.priority == 'Medium' %}#f59e0b{% else %}#22c55e{% endif %};"></span>
+                                    {{ complaint.priority }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if complaint.deadline %}
+                                <span class="countdown" id="cd-{{ complaint.id }}"
+                                    data-deadline="{{ complaint.deadline.isoformat() }}">
+                                    Calculating...
+                                </span>
+                                <div style="font-size:0.7rem; color:var(--text-dim); margin-top:0.2rem;">
+                                    {{ complaint.deadline.strftime('%b %d, %H:%M') }} UTC
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span
+                                    class="badge status-badge-{{ complaint.id }} {% if complaint.status == 'Resolved' %}badge-success{% elif complaint.status == 'In Progress' %}badge-info{% else %}badge-gray{% endif %}">
+                                    {% if complaint.status == 'Pending' %}<i class="fa-solid fa-clock"></i>
+                                    {% elif complaint.status == 'In Progress' %}<i
+                                        class="fa-solid fa-spinner fa-spin"></i>
+                                    {% else %}<i class="fa-solid fa-circle-check"></i>{% endif %}
+                                    {{ complaint.status }}
+                                </span>
+                                {% if complaint.is_escalated and complaint.status != 'Resolved' %}
+                                <div style="margin-top:0.3rem;">
+                                    <span class="badge badge-danger" style="font-size:0.65rem;"><i
+                                            class="fa-solid fa-triangle-exclamation"></i> Escalated</span>
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if complaint.status == 'Resolved' %}
+                                {% if complaint.feedback %}
+                                <div style="color:#f59e0b; font-size:1rem;">
+                                    {% for i in range(complaint.rating) %}<i class="fa-solid fa-star"></i>{% endfor %}
+                                </div>
+                                {% else %}
+                                <a href="{{ url_for('submit_feedback', complaint_id=complaint.id) }}"
+                                    class="btn btn-sm btn-ghost" style="color:var(--primary);">
+                                    <i class="fa-solid fa-star"></i> Rate
+                                </a>
+                                {% endif %}
+                                {% else %}
+                                <span style="color:var(--text-dim); font-size:0.8rem;">Processing...</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" style="text-align:center; padding:5rem 0;">
+                                <i class="fa-solid fa-box-open"
+                                    style="font-size:3rem; color:var(--border-light); display:block; margin-bottom:1rem;"></i>
+                                <div style="font-weight:600; color:var(--text-muted);">No complaints yet.</div>
+                                <p style="color:var(--text-dim); font-size:0.9rem; margin:0.5rem 0 1.5rem;">When you
+                                    file a complaint, it will appear here.</p>
+                                <a href="{{ url_for('submit_complaint') }}" class="btn btn-primary btn-sm">
+                                    <i class="fa-solid fa-plus"></i> File First Complaint
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div class="img-modal" id="imgModal" onclick="this.classList.remove('open')">
+        <button class="img-modal-close"><i class="fa-solid fa-times"></i></button>
+        <img id="modalImg" src="" alt="">
+    </div>
+
+    <!-- Socket.IO + Real-Time Logic -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        const userId = {{ current_user.id }};
+        const socket = io({ transports: ['websocket', 'polling'] });
+
+        socket.on('connect', () => {
+            socket.emit('join', { room: `user_${userId}` });
+            console.log('[Socket] Connected as user', userId);
+        });
+
+        // Real-time status update
+        socket.on('status_update', data => {
+            if (data.complaint_id) {
+                updateRowStatus(data.complaint_id, data.new_status);
+                showToast('Status Updated', `Complaint #${data.complaint_id} → ${data.new_status}`, 'info');
+                addRealTimeNotif(`Your complaint #${data.complaint_id} status updated to "${data.new_status}"`, 'status_update');
+                updateNotifCount(1);
+            }
+        });
+
+        function updateRowStatus(id, status) {
+            const row = document.getElementById(`row-${id}`);
+            const badge = document.querySelector(`.status-badge-${id}`);
+            if (!badge) return;
+            const icons = { 'Pending': 'fa-clock', 'In Progress': 'fa-spinner fa-spin', 'Resolved': 'fa-circle-check' };
+            const classes = { 'Pending': 'badge-gray', 'In Progress': 'badge-info', 'Resolved': 'badge-success' };
+            badge.className = `badge status-badge-${id} ${classes[status] || 'badge-gray'}`;
+            badge.innerHTML = `<i class="fa-solid ${icons[status] || 'fa-clock'}"></i> ${status}`;
+            if (row) {
+                row.classList.remove('row-resolved', 'row-progress');
+                if (status === 'Resolved') row.classList.add('row-resolved');
+                else if (status === 'In Progress') row.classList.add('row-progress');
+                row.style.animation = 'newFlash 2s ease-out';
+                setTimeout(() => row.style.animation = '', 2000);
+            }
+        }
+
+        // ── Toast Notifications ────────────────────────────────────────
+        function showToast(title, message, type = 'info') {
+            const colors = { info: '#3b82f6', success: '#22c55e', warning: '#f59e0b', danger: '#ef4444', escalation: '#ef4444' };
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.setProperty('--toast-color', colors[type] || colors.info);
+            toast.innerHTML = `
+        <button class="toast-close" onclick="removeToast(this.parentElement)">&times;</button>
+        <div class="toast-title"><i class="fa-solid fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'triangle-exclamation' : type === 'escalation' ? 'siren-on' : 'circle-info'}"></i> ${title}</div>
+        <div class="toast-body">${message}</div>
+    `;
+            container.appendChild(toast);
+            setTimeout(() => removeToast(toast), 6000);
+        }
+        function removeToast(el) {
+            el.classList.add('fade-out');
+            setTimeout(() => el.remove(), 400);
+        }
+
+        // ── Notification Panel ─────────────────────────────────────────
+        let notifOpen = false;
+        function toggleNotifPanel() {
+            const panel = document.getElementById('notifPanel');
+            notifOpen = !notifOpen;
+            panel.classList.toggle('open', notifOpen);
+        }
+        function closeNotifPanel() {
+            notifOpen = false;
+            document.getElementById('notifPanel').classList.remove('open');
+        }
+        function updateNotifCount(add = 0) {
+            const badge = document.getElementById('notifCount');
+            let count = parseInt(badge.textContent || '0') + add;
+            if (count > 0) { badge.textContent = count; badge.style.display = 'flex'; }
+            else { badge.style.display = 'none'; }
+        }
+        function addRealTimeNotif(msg, type) {
+            const list = document.getElementById('notifList');
+            const empty = list.querySelector('.text-center');
+            if (empty) empty.remove();
+            const item = document.createElement('div');
+            item.className = `notif-item unread ${type === 'escalation' ? 'escalation' : ''}`;
+            const icon = type === 'escalation' ? 'triangle-exclamation' : type === 'status_update' ? 'rotate' : 'check-circle';
+            const iconColor = type === 'escalation' ? '#ef4444' : type === 'status_update' ? '#3b82f6' : '#22c55e';
+            item.innerHTML = `<div class="notif-msg"><i class="fa-solid fa-${icon}" style="color:${iconColor};"></i> ${msg}</div><div class="notif-time">just now</div>`;
+            list.insertBefore(item, list.firstChild);
+        }
+        function markAllRead() {
+            fetch('/mark_all_read', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+                .then(() => {
+                    document.querySelectorAll('.notif-item.unread').forEach(el => el.classList.remove('unread'));
+                    document.getElementById('notifCount').style.display = 'none';
+                });
+        }
+        function markOneRead(id) {
+            const el = document.getElementById(`notif-${id}`);
+            if (el && el.classList.contains('unread')) {
+                fetch(`/mark_read/${id}`, { method: 'POST' });
+                el.classList.remove('unread');
+                updateNotifCount(-1);
+            }
+        }
+
+        // ── Countdown Timers ───────────────────────────────────────────
+        function startCountdowns() {
+            document.querySelectorAll('.countdown[data-deadline]').forEach(el => {
+                updateCountdown(el);
+                setInterval(() => updateCountdown(el), 1000);
+            });
+        }
+        function updateCountdown(el) {
+            const deadline = new Date(el.dataset.deadline + 'Z');
+            const now = new Date();
+            const diff = deadline - now;
+            el.classList.remove('overdue', 'safe');
+            if (diff <= 0) {
+                el.textContent = '⚠ OVERDUE';
+                el.classList.add('overdue');
+            } else {
+                const h = Math.floor(diff / 3600000);
+                const m = Math.floor((diff % 3600000) / 60000);
+                const s = Math.floor((diff % 60000) / 1000);
+                el.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                if (h >= 24) el.classList.add('safe');
+            }
+        }
+        startCountdowns();
+
+        // Close panel on outside click
+        document.addEventListener('click', e => {
+            const panel = document.getElementById('notifPanel');
+            const bell = document.getElementById('notifBell');
+            if (notifOpen && !panel.contains(e.target) && !bell.contains(e.target)) closeNotifPanel();
+        });
+    </script>
+</body>
+
+</html>

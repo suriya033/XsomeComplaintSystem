@@ -1,0 +1,11 @@
+Flask
+Flask-SQLAlchemy
+Flask-Login
+email_validator
+scikit-learn
+numpy
+google-generativeai
+Pillow
+Flask-Mail
+Flask-SocketIO
+eventlet

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xsome Complaint System – AI-Powered Smart City Platform</title>
+    <meta name="description"
+        content="AI-powered complaint management system with real-time notifications, NLP classification, SLA monitoring and live dashboard updates.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="{{ url_for('home') }}" class="logo">
+                <i class="fa-solid fa-building-shield"></i> Xsome Complaint System
+            </a>
+            <div class="nav-links">
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('dashboard') }}"><i class="fa-solid fa-gauge-high"></i> <span>Dashboard</span></a>
+                {% if current_user.role == 'User' %}
+                <a href="{{ url_for('submit_complaint') }}"><i class="fa-solid fa-plus"></i> <span>New
+                        Complaint</span></a>
+                {% endif %}
+                <a href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> <span>Logout</span></a>
+                {% else %}
+                <a href="{{ url_for('login') }}"><i class="fa-solid fa-user-lock"></i> <span>Login</span></a>
+                <a href="{{ url_for('register') }}" class="btn btn-primary" style="margin-left:0.5rem;">
+                    <i class="fa-solid fa-user-plus"></i> Join Now
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <header class="hero animate-up">
+        <div class="hero-orb hero-orb-1"></div>
+        <div class="hero-orb hero-orb-2"></div>
+        <div class="container" style="position:relative; z-index:1;">
+            <div
+                style="display:inline-flex; align-items:center; gap:0.5rem; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); border-radius:99px; padding:0.4rem 1rem; margin-bottom:2rem;">
+                <span class="live-dot"></span>
+                <span style="font-size:0.8rem; font-weight:600; color:#a5b4fc;">Real-Time AI System Active</span>
+            </div>
+            <h1>Citizen Empowerment<br>Through AI</h1>
+            <p>Submit complaints, track resolutions in real-time, and let our AI handle classification, prioritization,
+                and routing — instantly.</p>
+            <div style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+                {% if not current_user.is_authenticated %}
+                <a href="{{ url_for('register') }}" class="btn btn-primary"
+                    style="padding:0.9rem 2.5rem; font-size:1.05rem;">
+                    <i class="fa-solid fa-bolt"></i> File a Complaint
+                </a>
+                <a href="{{ url_for('login') }}" class="btn btn-ghost"
+                    style="padding:0.9rem 2.5rem; font-size:1.05rem;">
+                    <i class="fa-solid fa-right-to-bracket"></i> Login
+                </a>
+                {% else %}
+                <a href="{{ url_for('dashboard') }}" class="btn btn-primary"
+                    style="padding:0.9rem 2.5rem; font-size:1.05rem;">
+                    <i class="fa-solid fa-gauge-high"></i> Go to Dashboard
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <!-- Features -->
+    <section id="features" style="padding: 0 0 5rem;">
+        <div class="container">
+            <div style="text-align:center; margin-bottom:4rem;">
+                <h2 style="font-size:2.5rem; font-weight:900; letter-spacing:-0.04em;">Powered by Intelligence</h2>
+                <p style="color:var(--text-muted); margin-top:0.75rem; font-size:1.1rem;">Seven layers of AI working
+                    together for faster city resolution.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card animate-up delay-1">
+                    <div class="feature-icon" style="background:rgba(99,102,241,0.1);">
+                        <i class="fa-solid fa-microchip" style="color:#6366f1;"></i>
+                    </div>
+                    <h3>NLP Classification</h3>
+                    <p>Gemini AI reads your complaint and auto-assigns it to Road, Electricity, Water, Sanitation, or
+                        Other — with 95%+ accuracy.</p>
+                </div>
+                <div class="feature-card animate-up delay-2">
+                    <div class="feature-icon" style="background:rgba(244,63,94,0.1);">
+                        <i class="fa-solid fa-eye" style="color:#f43f5e;"></i>
+                    </div>
+                    <h3>AI Vision Verification</h3>
+                    <p>Multimodal Gemini checks if uploaded images actually match the described problem — preventing
+                        false reports.</p>
+                </div>
+                <div class="feature-card animate-up delay-3">
+                    <div class="feature-icon" style="background:rgba(34,197,94,0.1);">
+                        <i class="fa-solid fa-clone" style="color:#22c55e;"></i>
+                    </div>
+                    <h3>Cosine Duplicate Blocker</h3>
+                    <p>TF-IDF vectorization + cosine similarity detects duplicate complaints at the same location before
+                        they enter the workflow.</p>
+                </div>
+                <div class="feature-card animate-up delay-1">
+                    <div class="feature-icon" style="background:rgba(245,158,11,0.1);">
+                        <i class="fa-solid fa-gauge-high" style="color:#f59e0b;"></i>
+                    </div>
+                    <h3>SLA Priority Engine</h3>
+                    <p>Automatic risk evaluation assigns High (24h), Medium (48h), or Low (72h) SLA deadlines with
+                        instant countdown timers.</p>
+                </div>
+                <div class="feature-card animate-up delay-2">
+                    <div class="feature-icon" style="background:rgba(59,130,246,0.1);">
+                        <i class="fa-solid fa-bolt" style="color:#3b82f6;"></i>
+                    </div>
+                    <h3>Real-Time Socket.IO</h3>
+                    <p>Live notifications broadcast to admin and department dashboards the moment a complaint is
+                        submitted — no refresh needed.</p>
+                </div>
+                <div class="feature-card animate-up delay-3">
+                    <div class="feature-icon" style="background:rgba(239,68,68,0.1);">
+                        <i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i>
+                    </div>
+                    <h3>Auto Escalation</h3>
+                    <p>SLA monitoring engine runs every minute. Breached deadlines trigger automatic escalation alerts
+                        to the Admin dashboard.</p>
+                </div>
+                <div class="feature-card animate-up delay-1">
+                    <div class="feature-icon" style="background:rgba(168,85,247,0.1);">
+                        <i class="fa-solid fa-chart-line" style="color:#a855f7;"></i>
+                    </div>
+                    <h3>Predictive Analytics</h3>
+                    <p>Dynamic charts showing category distribution, resolution rates, SLA breach trends, and department
+                        performance metrics.</p>
+                </div>
+                <div class="feature-card animate-up delay-2">
+                    <div class="feature-icon" style="background:rgba(20,184,166,0.1);">
+                        <i class="fa-solid fa-envelope-open-text" style="color:#14b8a6;"></i>
+                    </div>
+                    <h3>Instant Email Alerts</h3>
+                    <p>Automated email sent to users on submission, and escalation alerts sent to admin on SLA breach —
+                        all in real-time.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Banner -->
+    <div
+        style="background:var(--surface); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:3rem 0;">
+        <div class="container">
+            <div class="grid-4" style="text-align:center;">
+                <div>
+                    <div style="font-size:3rem; font-weight:900; color:#6366f1;">95%</div>
+                    <div style="color:var(--text-muted); font-size:0.9rem; margin-top:0.25rem;">AI Classification
+                        Accuracy</div>
+                </div>
+                <div>
+                    <div style="font-size:3rem; font-weight:900; color:#22c55e;">&lt;1s</div>
+                    <div style="color:var(--text-muted); font-size:0.9rem; margin-top:0.25rem;">Real-Time Notification
+                        Speed</div>
+                </div>
+                <div>
+                    <div style="font-size:3rem; font-weight:900; color:#f59e0b;">70%</div>
+                    <div style="color:var(--text-muted); font-size:0.9rem; margin-top:0.25rem;">Duplicate Detection
+                        Threshold</div>
+                </div>
+                <div>
+                    <div style="font-size:3rem; font-weight:900; color:#f43f5e;">5</div>
+                    <div style="color:var(--text-muted); font-size:0.9rem; margin-top:0.25rem;">Department Channels
+                        Routed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="logo" style="font-size:1.8rem; margin-bottom:1rem; display:inline-block;">
+                <i class="fa-solid fa-building-shield"></i> Xsome
+            </div>
+            <p style="margin-bottom:0.5rem;">AI-Powered Smart City Complaint Management System</p>
+            <p style="color:var(--text-dim);">&copy; 2026 Xsome Complaint System. Built with Flask + Socket.IO + Gemini
+                AI.</p>
+        </div>
+    </footer>
+</body>
+
+</html>

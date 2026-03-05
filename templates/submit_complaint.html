@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Complaint – Xsome Complaint System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="{{ url_for('home') }}" class="logo"><i class="fa-solid fa-building-shield"></i> Xsome Complaint
+                System</a>
+            <div class="nav-links">
+                <a href="{{ url_for('user_dashboard') }}"><i class="fa-solid fa-arrow-left"></i> <span>My
+                        Dashboard</span></a>
+                <a href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> <span>Logout</span></a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container animate-up" style="padding:3rem 0;">
+        <div style="max-width:820px; margin:0 auto;">
+            <!-- Header -->
+            <div style="text-align:center; margin-bottom:3rem;">
+                <div
+                    style="display:inline-flex; width:72px; height:72px; align-items:center; justify-content:center; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.2); border-radius:1.5rem; font-size:2rem; margin-bottom:1.5rem;">
+                    <i class="fa-solid fa-bullhorn" style="color:var(--primary);"></i>
+                </div>
+                <h1 style="font-size:2.5rem; font-weight:900; letter-spacing:-0.04em;">Report an Issue</h1>
+                <p style="color:var(--text-muted); margin-top:0.5rem;">Our AI will instantly classify, prioritize, and
+                    route your complaint.</p>
+            </div>
+
+            <!-- AI Info Banner -->
+            <div
+                style="background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.15); border-radius:var(--radius); padding:1rem 1.5rem; margin-bottom:2rem; display:flex; align-items:center; gap:1rem;">
+                <i class="fa-solid fa-microchip" style="color:#6366f1; font-size:1.5rem;"></i>
+                <div>
+                    <div style="font-weight:700; font-size:0.9rem;">AI-Powered Processing</div>
+                    <div style="font-size:0.8rem; color:var(--text-muted);">NLP classification · Vision analysis ·
+                        Cosine duplicate detection · Auto SLA assignment</div>
+                </div>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}{% for category, message in messages %}
+            <div class="alert alert-{{ category }}"><i class="fa-solid fa-circle-info"></i> {{ message }}</div>
+            {% endfor %}{% endif %}{% endwith %}
+
+            <div class="card">
+                <div class="card-body" style="padding:2.5rem;">
+                    <form method="POST" action="{{ url_for('submit_complaint') }}" enctype="multipart/form-data"
+                        id="complaintForm">
+
+                        <!-- Title -->
+                        <div class="form-group">
+                            <label class="form-label" for="title">
+                                <i class="fa-solid fa-heading" style="color:var(--primary);"></i> Complaint Title *
+                            </label>
+                            <input type="text" class="form-control" id="title" name="title"
+                                placeholder="e.g. Street light failure at Anna Nagar 2nd Street" required
+                                maxlength="200">
+                        </div>
+
+                        <!-- Category + Location -->
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label class="form-label" for="category">
+                                    <i class="fa-solid fa-robot" style="color:var(--primary);"></i> Category
+                                </label>
+                                <select class="form-control" id="category" name="category">
+                                    <option value="">🤖 Let AI Classify</option>
+                                    <option value="Electricity">⚡ Electricity</option>
+                                    <option value="Water">💧 Water Supply</option>
+                                    <option value="Road">🛣️ Road & Transport</option>
+                                    <option value="Sanitation">🗑️ Sanitation</option>
+                                    <option value="Other">📋 Other</option>
+                                </select>
+                                <div style="font-size:0.75rem; color:var(--text-dim); margin-top:0.4rem;">
+                                    Leave blank for automatic NLP classification
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="location">
+                                    <i class="fa-solid fa-location-dot" style="color:var(--primary);"></i> Detailed
+                                    Location *
+                                </label>
+                                <input type="text" class="form-control" id="location" name="location"
+                                    placeholder="e.g. 5th Cross Street, North Anna Nagar" required>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="form-group">
+                            <label class="form-label" for="description">
+                                <i class="fa-solid fa-align-left" style="color:var(--primary);"></i> Problem Description
+                                *
+                            </label>
+                            <textarea class="form-control" id="description" name="description" rows="6"
+                                placeholder="Describe the problem accurately. Use keywords like 'leak', 'power failure', 'fire', 'danger' for high-priority assignment..."
+                                required></textarea>
+                            <div style="display:flex; gap:1.5rem; margin-top:0.6rem; flex-wrap:wrap;">
+                                <span style="font-size:0.75rem; color:#ef4444;">🔴 HIGH: leak, fire, danger,
+                                    flood</span>
+                                <span style="font-size:0.75rem; color:#f59e0b;">🟡 MEDIUM: damage, broken,
+                                    pothole</span>
+                                <span style="font-size:0.75rem; color:#22c55e;">🟢 LOW: general, feedback</span>
+                            </div>
+                        </div>
+
+                        <!-- File Upload -->
+                        <div class="form-group">
+                            <label class="form-label">
+                                <i class="fa-solid fa-camera" style="color:var(--primary);"></i> Visual Evidence
+                                (Photo/Document)
+                            </label>
+                            <div class="file-upload-area" id="dropArea"
+                                onclick="document.getElementById('file').click();">
+                                <input type="file" id="file" name="file" accept=".png,.jpg,.jpeg,.gif,.pdf,.doc,.docx"
+                                    onchange="handleFileSelect(this)">
+                                <div id="uploadPlaceholder">
+                                    <i class="fa-solid fa-cloud-arrow-up"
+                                        style="font-size:2.5rem; color:var(--primary); margin-bottom:0.75rem; display:block;"></i>
+                                    <div style="font-weight:600; margin-bottom:0.3rem;">Click to upload or drag & drop
+                                    </div>
+                                    <div style="font-size:0.8rem; color:var(--text-muted);">PNG, JPG, GIF, PDF, DOC –
+                                        Max 10MB</div>
+                                </div>
+                                <div id="filePreview" style="display:none;">
+                                    <img id="previewImg" src="" alt=""
+                                        style="max-height:180px; object-fit:contain; border-radius:var(--radius-sm); margin-bottom:0.75rem;">
+                                    <div id="fileName" style="font-weight:600; font-size:0.9rem;"></div>
+                                    <div style="font-size:0.8rem; color:var(--primary); margin-top:0.3rem;">✓ File
+                                        selected – AI vision will verify this image</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit -->
+                        <button type="submit" class="btn btn-primary w-full" id="submitBtn"
+                            style="padding:1.1rem; font-size:1.05rem; box-shadow:0 10px 30px rgba(99,102,241,0.3);">
+                            <i class="fa-solid fa-paper-plane"></i> Submit Complaint & Activate AI
+                        </button>
+
+                        <div style="margin-top:1rem; text-align:center; font-size:0.8rem; color:var(--text-dim);">
+                            <i class="fa-solid fa-shield-halved"></i> Your complaint is processed securely and routed
+                            instantly to the relevant department.
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const placeholder = document.getElementById('uploadPlaceholder');
+            const preview = document.getElementById('filePreview');
+            const previewImg = document.getElementById('previewImg');
+            const fileNameEl = document.getElementById('fileName');
+            fileNameEl.textContent = file.name;
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = e => { previewImg.src = e.target.result; previewImg.style.display = 'block'; };
+                reader.readAsDataURL(file);
+            } else {
+                previewImg.style.display = 'none';
+            }
+            placeholder.style.display = 'none';
+            preview.style.display = 'block';
+        }
+
+        // Drag and drop
+        const dropArea = document.getElementById('dropArea');
+        ['dragenter', 'dragover'].forEach(e => dropArea.addEventListener(e, ev => {
+            ev.preventDefault(); ev.stopPropagation();
+            dropArea.style.borderColor = 'var(--primary)';
+        }));
+        ['dragleave', 'drop'].forEach(e => dropArea.addEventListener(e, ev => {
+            ev.preventDefault(); ev.stopPropagation();
+            dropArea.style.borderColor = '';
+        }));
+        dropArea.addEventListener('drop', ev => {
+            const files = ev.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('file').files = files;
+                handleFileSelect(document.getElementById('file'));
+            }
+        });
+
+        // Submit button loading state
+        document.getElementById('complaintForm').addEventListener('submit', () => {
+            const btn = document.getElementById('submitBtn');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing with AI...';
+            btn.disabled = true;
+        });
+    </script>
+</body>
+
+</html>

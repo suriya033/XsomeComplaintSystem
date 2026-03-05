@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard – Xsome Complaint System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Notification Panel -->
+    <div class="notif-panel" id="notifPanel">
+        <div class="notif-panel-header">
+            <h6><i class="fa-solid fa-bell"></i> System Notifications</h6>
+            <div style="display:flex;gap:0.5rem;">
+                <button class="btn btn-sm btn-ghost" onclick="markAllRead()"
+                    style="font-size:0.75rem;padding:0.25rem 0.6rem;">Mark All Read</button>
+                <button class="btn btn-sm btn-ghost" onclick="toggleNotifPanel()" style="padding:0.25rem 0.6rem;"><i
+                        class="fa-solid fa-times"></i></button>
+            </div>
+        </div>
+        <div class="notif-list" id="notifList">
+            {% for notif in notifications %}
+            <div class="notif-item {{ 'unread' if not notif.is_read }} {{ 'escalation' if notif.notif_type == 'escalation' }}"
+                id="notif-{{ notif.id }}" onclick="markOneRead({{ notif.id }})">
+                <div class="notif-msg">
+                    {% if notif.notif_type == 'escalation' %}<i class="fa-solid fa-triangle-exclamation"
+                        style="color:#ef4444;"></i>
+                    {% elif notif.notif_type == 'new_complaint' %}<i class="fa-solid fa-inbox"
+                        style="color:#6366f1;"></i>
+                    {% else %}<i class="fa-solid fa-rotate" style="color:#3b82f6;"></i>{% endif %}
+                    {{ notif.message }}
+                </div>
+                <div class="notif-time">{{ notif.created_at.strftime('%b %d, %H:%M') }}</div>
+            </div>
+            {% else %}
+            <div style="text-align:center;padding:3rem;color:var(--text-dim);">
+                <i class="fa-solid fa-circle-check"
+                    style="font-size:2rem;margin-bottom:0.75rem;display:block;color:#22c55e;"></i> System clear!
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="{{ url_for('home') }}" class="logo"><i class="fa-solid fa-building-shield"></i> Xsome Complaint
+                System</a>
+            <div class="nav-links">
+                <span style="color:var(--text-muted);font-size:0.85rem;padding:0.5rem 0.75rem;">
+                    <i class="fa-solid fa-crown" style="color:#f59e0b;"></i> Admin
+                </span>
+                <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()">
+                    <i class="fa-solid fa-bell"></i>
+                    {% if unread_count > 0 %}
+                    <span class="notif-badge" id="notifCount">{{ unread_count }}</span>
+                    {% else %}
+                    <span class="notif-badge" id="notifCount" style="display:none;">0</span>
+                    {% endif %}
+                </button>
+                <a href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> <span>Logout</span></a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="padding:2.5rem 0 5rem;">
+        <!-- Page Header -->
+        <div
+            style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;margin-bottom:2rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border);">
+            <div class="animate-up">
+                <h1 style="font-size:2.2rem;font-weight:900;letter-spacing:-0.04em;">Admin Control Center</h1>
+                <div style="display:flex;align-items:center;gap:1rem;margin-top:0.4rem;">
+                    <span style="color:var(--text-muted);">Full system visibility &amp; analytics</span>
+                    <span class="live-indicator"><span class="live-dot"></span> Live Sync Active</span>
+                </div>
+            </div>
+            <div class="animate-up" style="font-size:0.8rem;color:var(--text-dim);">
+                <i class="fa-regular fa-clock"></i> {{ now.strftime('%Y-%m-%d %H:%M') }} UTC
+            </div>
+        </div>
+
+        <!-- ═══ KPI CARDS ════════════════════════════════════════════ -->
+        <div class="stats-grid animate-up" style="margin-bottom:2rem;">
+            <div class="kpi-card" style="--accent-bar:#6366f1;">
+                <div class="kpi-label"><i class="fa-solid fa-folder-open"></i> Total Complaints</div>
+                <div class="kpi-value" id="kpiTotal">{{ complaints|length }}</div>
+                <div class="kpi-sub">All time</div>
+            </div>
+            <div class="kpi-card" style="--accent-bar:#ef4444;">
+                <div class="kpi-label"><i class="fa-solid fa-triangle-exclamation"></i> SLA Breached</div>
+                <div class="kpi-value" id="kpiBreach" style="color:#fca5a5;">{{ sla_violations }}</div>
+                <div class="kpi-sub">Breach rate: <strong>{{ breach_rate }}%</strong></div>
+            </div>
+            <div class="kpi-card" style="--accent-bar:#22c55e;">
+                <div class="kpi-label"><i class="fa-solid fa-circle-check"></i> Resolved</div>
+                <div class="kpi-value" id="kpiResolved" style="color:#86efac;">{{ status_counts[2] }}</div>
+                <div class="kpi-sub">Rate: <strong>{{ resolution_rate }}%</strong></div>
+            </div>
+            <div class="kpi-card" style="--accent-bar:#f59e0b;">
+                <div class="kpi-label"><i class="fa-solid fa-hourglass-half"></i> Active</div>
+                <div class="kpi-value" id="kpiActive" style="color:#fcd34d;">{{ status_counts[0] + status_counts[1] }}
+                </div>
+                <div class="kpi-sub">Pending + In Progress</div>
+            </div>
+            <div class="kpi-card" style="--accent-bar:#ef4444;">
+                <div class="kpi-label" style="color:#fca5a5;"><i class="fa-solid fa-bolt"></i> High Priority</div>
+                <div class="kpi-value" style="color:#fca5a5;">{{ priority_counts[0] }}</div>
+                <div class="kpi-sub">SLA: 24 hours</div>
+            </div>
+            <div class="kpi-card" style="--accent-bar:#f59e0b;">
+                <div class="kpi-label"><i class="fa-solid fa-gauge"></i> Medium Priority</div>
+                <div class="kpi-value" style="color:#fcd34d;">{{ priority_counts[1] }}</div>
+                <div class="kpi-sub">SLA: 48 hours</div>
+            </div>
+        </div>
+
+        <!-- ═══ LIVE COMPLAINT FEED ══════════════════════════════════ -->
+        <div id="liveFeed" style="margin-bottom:2rem;"></div>
+
+        <!-- ═══ ANALYTICS CHARTS ════════════════════════════════════ -->
+        <div style="margin-bottom:2rem;">
+            <h4 style="font-weight:800;font-size:1rem;letter-spacing:-0.02em;margin-bottom:1.25rem;"><i
+                    class="fa-solid fa-chart-line" style="color:var(--primary);"></i> Predictive Analytics</h4>
+            <div class="analytics-grid">
+                <div class="chart-card animate-up delay-1">
+                    <div class="chart-title"><i class="fa-solid fa-chart-bar"></i> Complaints by Category</div>
+                    <div style="height:280px;position:relative;"><canvas id="categoryChart"></canvas></div>
+                </div>
+                <div class="chart-card animate-up delay-2">
+                    <div class="chart-title"><i class="fa-solid fa-chart-pie"></i> Resolution Status</div>
+                    <div style="height:280px;position:relative;display:flex;align-items:center;justify-content:center;">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card animate-up delay-1">
+                    <div class="chart-title"><i class="fa-solid fa-exclamation-triangle"></i> Priority Distribution
+                    </div>
+                    <div style="height:280px;position:relative;"><canvas id="priorityChart"></canvas></div>
+                </div>
+                <div class="chart-card animate-up delay-2">
+                    <div class="chart-title"><i class="fa-solid fa-gauge-high"></i> SLA Performance Metrics</div>
+                    <div style="height:280px;position:relative;"><canvas id="slaChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ ALL COMPLAINTS TABLE ═════════════════════════════════ -->
+        <div class="card animate-up">
+            <div class="card-header">
+                <h5 style="font-weight:700;font-size:0.95rem;"><i class="fa-solid fa-table"></i> All System Complaints
+                </h5>
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <input type="text" id="tableSearch" placeholder="Search complaints..." class="form-control"
+                        style="width:220px;padding:0.45rem 0.85rem;font-size:0.85rem;" oninput="filterTable()">
+                    <span class="badge badge-gray" id="tableCount">{{ complaints|length }} Total</span>
+                </div>
+            </div>
+            <div class="overflow-x">
+                <table class="data-table" id="adminTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Complaint</th>
+                            <th>Category / Dept</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>SLA Deadline</th>
+                            <th>Submitted</th>
+                            <th>Escalated</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminTableBody">
+                        {% for complaint in complaints %}
+                        <tr id="admin-row-{{ complaint.id }}"
+                            class="{{ 'escalated' if complaint.is_escalated and complaint.status != 'Resolved' }}">
+                            <td style="font-weight:700;color:var(--primary);">#{{ complaint.id }}</td>
+                            <td>
+                                <div
+                                    style="font-weight:600;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                    {{ complaint.title }}</div>
+                                <div
+                                    style="font-size:0.75rem;color:var(--text-muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                    {{ complaint.description[:60] }}{% if complaint.description|length > 60 %}...{%
+                                    endif %}
+                                </div>
+                                {% if complaint.image_file %}
+                                <div style="margin-top:0.3rem;">
+                                    <img src="{{ url_for('static', filename='uploads/' + complaint.image_file) }}"
+                                        style="width:50px;height:35px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid var(--border);"
+                                        onclick="openImgModal('{{ url_for('static', filename='uploads/' + complaint.image_file) }}')"
+                                        title="{{ complaint.ai_vision_status }}">
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="badge badge-purple" style="margin-bottom:0.3rem;">
+                                    {% if complaint.category == 'Electricity' %}⚡{% elif complaint.category == 'Water'
+                                    %}💧{% elif complaint.category == 'Road' %}🛣️{% elif complaint.category ==
+                                    'Sanitation' %}🗑️{% else %}📋{% endif %}
+                                    {{ complaint.category }}
+                                </div>
+                                <div style="font-size:0.72rem;color:var(--text-dim);">{{ complaint.zone }}</div>
+                            </td>
+                            <td>
+                                <span
+                                    class="badge {% if complaint.priority == 'High' %}badge-danger{% elif complaint.priority == 'Medium' %}badge-warning{% else %}badge-success{% endif %}">
+                                    <span class="priority-dot"
+                                        style="background:{% if complaint.priority == 'High' %}#ef4444{% elif complaint.priority == 'Medium' %}#f59e0b{% else %}#22c55e{% endif %};"></span>
+                                    {{ complaint.priority }}
+                                </span>
+                            </td>
+                            <td>
+                                <span
+                                    class="badge admin-status-{{ complaint.id }} {% if complaint.status == 'Resolved' %}badge-success{% elif complaint.status == 'In Progress' %}badge-info{% else %}badge-gray{% endif %}">
+                                    {{ complaint.status }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if complaint.deadline %}
+                                <span class="countdown" id="cd-{{ complaint.id }}"
+                                    data-deadline="{{ complaint.deadline.isoformat() }}">...</span>
+                                <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.15rem;">{{
+                                    complaint.deadline.strftime('%b %d %H:%M') }}</div>
+                                {% endif %}
+                            </td>
+                            <td style="font-size:0.82rem;color:var(--text-muted);">
+                                <div>{{ complaint.date_posted.strftime('%b %d') }}</div>
+                                <div style="font-size:0.7rem;color:var(--text-dim);">{{
+                                    complaint.date_posted.strftime('%H:%M') }}</div>
+                                {% if complaint.is_duplicate %}
+                                <span class="badge badge-warning" style="font-size:0.62rem;margin-top:0.2rem;"><i
+                                        class="fa-solid fa-copy"></i> Dup</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if complaint.is_escalated and complaint.status != 'Resolved' %}
+                                <span class="badge badge-danger"><i class="fa-solid fa-triangle-exclamation"></i>
+                                    YES</span>
+                                {% else %}
+                                <span class="badge badge-gray">No</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" style="text-align:center;padding:4rem;color:var(--text-dim);">
+                                <i class="fa-solid fa-inbox"
+                                    style="font-size:3rem;display:block;margin-bottom:1rem;"></i>
+                                No complaints in system yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div class="img-modal" id="imgModal" onclick="this.classList.remove('open')">
+        <button class="img-modal-close"><i class="fa-solid fa-times"></i></button>
+        <img id="modalImg" src="" alt="">
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        // ── Chart.js Theme Defaults ──────────────────────────────────
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+        Chart.defaults.font.family = 'Outfit, sans-serif';
+
+        // ── Data from Flask ─────────────────────────────────────────
+        const catLabels = {{ categories| tojson }};
+        const catData = {{ cat_counts| tojson }};
+        const statusLabels = {{ status_labels| tojson }};
+        const statusData = {{ status_counts| tojson }};
+        const priorityData = {{ priority_counts| tojson }};
+        const slaViolations = {{ sla_violations }};
+        const total = {{ complaints| length }};
+        const resolved = {{ status_counts[2] }};
+
+        // ── Category Bar Chart ─────────────────────────────────────
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'bar',
+            data: {
+                labels: catLabels,
+                datasets: [{
+                    label: 'Complaints',
+                    data: catData,
+                    backgroundColor: ['rgba(99,102,241,0.6)', 'rgba(59,130,246,0.6)', 'rgba(245,158,11,0.6)', 'rgba(34,197,94,0.6)', 'rgba(100,116,139,0.6)'],
+                    borderColor: ['rgba(99,102,241,1)', 'rgba(59,130,246,1)', 'rgba(245,158,11,1)', 'rgba(34,197,94,1)', 'rgba(100,116,139,1)'],
+                    borderWidth: 2,
+                    borderRadius: 8,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // ── Status Doughnut Chart ────────────────────────────────────
+        new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: statusLabels,
+                datasets: [{
+                    data: statusData,
+                    backgroundColor: ['rgba(100,116,139,0.7)', 'rgba(59,130,246,0.7)', 'rgba(34,197,94,0.7)'],
+                    borderColor: ['rgba(100,116,139,1)', 'rgba(59,130,246,1)', 'rgba(34,197,94,1)'],
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '70%',
+                plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true } } }
+            }
+        });
+
+        // ── Priority Radar Chart ─────────────────────────────────────
+        new Chart(document.getElementById('priorityChart'), {
+            type: 'bar',
+            data: {
+                labels: ['High', 'Medium', 'Low'],
+                datasets: [{
+                    label: 'Count',
+                    data: priorityData,
+                    backgroundColor: ['rgba(239,68,68,0.6)', 'rgba(245,158,11,0.6)', 'rgba(34,197,94,0.6)'],
+                    borderColor: ['rgba(239,68,68,1)', 'rgba(245,158,11,1)', 'rgba(34,197,94,1)'],
+                    borderWidth: 2, borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } }
+            }
+        });
+
+        // ── SLA Performance Polar Chart ──────────────────────────────
+        const onTime = Math.max(0, resolved - slaViolations);
+        const breachNotResolved = Math.max(0, slaViolations);
+        const pending = Math.max(0, total - resolved);
+        new Chart(document.getElementById('slaChart'), {
+            type: 'polarArea',
+            data: {
+                labels: ['On-Time Resolved', 'SLA Breached', 'Active / Pending'],
+                datasets: [{
+                    data: [onTime, breachNotResolved, pending],
+                    backgroundColor: ['rgba(34,197,94,0.55)', 'rgba(239,68,68,0.55)', 'rgba(245,158,11,0.55)'],
+                    borderColor: ['rgba(34,197,94,1)', 'rgba(239,68,68,1)', 'rgba(245,158,11,1)'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { padding: 12, usePointStyle: true } } }
+            }
+        });
+
+        // ── Socket.IO Real-Time ───────────────────────────────────────
+        const socket = io({ transports: ['websocket', 'polling'] });
+        socket.on('connect', () => {
+            socket.emit('join', { room: 'admin' });
+            console.log('[Socket] Admin connected');
+        });
+
+        socket.on('new_complaint', data => {
+            showToast('🆕 New Complaint', `#${data.complaint_id}: <strong>${data.title}</strong> [${data.category}] – ${data.priority}`, 'info');
+            addRealTimeNotif(`New ${data.priority} complaint: #${data.complaint_id} – ${data.title} (${data.category})`, 'new_complaint');
+            updateNotifCount(1);
+            injectLiveFeedCard(data);
+            updateKPIs();
+        });
+
+        socket.on('escalation_alert', data => {
+            showToast('🚨 SLA BREACH', `#${data.complaint_id} <strong>${data.title}</strong> [${data.category}] has BREACHED its SLA!`, 'danger');
+            addRealTimeNotif(`🚨 SLA BREACH: #${data.complaint_id} – ${data.title} (${data.category})`, 'escalation');
+            updateNotifCount(1);
+            const row = document.getElementById(`admin-row-${data.complaint_id}`);
+            if (row) { row.classList.add('escalated'); }
+            updateKPIs();
+        });
+
+        socket.on('status_update', data => {
+            showToast('🔄 Status Update', `#${data.complaint_id}: ${data.old_status} → ${data.new_status}`, 'success');
+            const badge = document.querySelector(`.admin-status-${data.complaint_id}`);
+            if (badge) {
+                const classes = { 'Pending': 'badge-gray', 'In Progress': 'badge-info', 'Resolved': 'badge-success' };
+                badge.className = `badge admin-status-${data.complaint_id} ${classes[data.new_status] || 'badge-gray'}`;
+                badge.textContent = data.new_status;
+            }
+            updateKPIs();
+        });
+
+        function injectLiveFeedCard(data) {
+            const feed = document.getElementById('liveFeed');
+            const card = document.createElement('div');
+            const priColor = data.priority === 'High' ? '#ef4444' : data.priority === 'Medium' ? '#f59e0b' : '#22c55e';
+            const priBadge = data.priority === 'High' ? 'badge-danger' : data.priority === 'Medium' ? 'badge-warning' : 'badge-success';
+            card.className = 'card new-card-flash';
+            card.style.cssText = `margin-bottom:1rem; border-left:4px solid ${priColor};`;
+            card.innerHTML = `
+    <div class="card-body" style="padding:1.25rem 1.5rem;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.75rem;">
+            <div>
+                <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.4rem;">
+                    <span style="font-weight:700;font-size:0.95rem;color:var(--primary);">#${data.complaint_id}</span>
+                    <span class="badge ${priBadge}">
+                        <span class="priority-dot" style="background:${priColor};"></span>${data.priority}
+                    </span>
+                    <span class="badge badge-purple">${data.category}</span>
+                    <span style="font-size:0.72rem;color:#22c55e;font-weight:600;">● LIVE</span>
+                </div>
+                <div style="font-weight:700;font-size:1rem;">${data.title}</div>
+                <div style="font-size:0.83rem;color:var(--text-muted);margin-top:0.25rem;">${data.description}</div>
+                <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.4rem;">
+                    <i class="fa-solid fa-location-dot"></i> ${data.location} &bull;
+                    <i class="fa-solid fa-user"></i> ${data.submitter} &bull;
+                    SLA: ${data.deadline_hours}h
+                </div>
+            </div>
+            ${data.image_url ? `<img src="${data.image_url}" style="width:80px;height:56px;object-fit:cover;border-radius:8px;cursor:pointer;border:1px solid var(--border);" onclick="openImgModal('${data.image_url}')">` : ''}
+        </div>
+    </div>`;
+            feed.insertBefore(card, feed.firstChild);
+            // Auto-remove after 60 seconds
+            setTimeout(() => { card.classList.add('fade-out'); setTimeout(() => card.remove(), 400); }, 60000);
+        }
+
+        async function updateKPIs() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                document.getElementById('kpiTotal').textContent = data.total;
+                document.getElementById('kpiBreach').textContent = data.breached;
+                document.getElementById('kpiResolved').textContent = data.resolved;
+                document.getElementById('kpiActive').textContent = data.pending + data.in_progress;
+            } catch (e) { console.log('Stats update failed', e); }
+        }
+
+        // ── Table Search ─────────────────────────────────────────────
+        function filterTable() {
+            const q = document.getElementById('tableSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#adminTableBody tr');
+            let visible = 0;
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (text.includes(q)) { row.style.display = ''; visible++; }
+                else row.style.display = 'none';
+            });
+            document.getElementById('tableCount').textContent = `${visible} Shown`;
+        }
+
+        // ── Toast ─────────────────────────────────────────────────────
+        function showToast(title, msg, type = 'info') {
+            const colors = { info: '#3b82f6', success: '#22c55e', warning: '#f59e0b', danger: '#ef4444' };
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.setProperty('--toast-color', colors[type] || colors.info);
+            toast.innerHTML = `<button class="toast-close" onclick="removeToast(this.parentElement)">&times;</button>
+        <div class="toast-title">${title}</div>
+        <div class="toast-body">${msg}</div>`;
+            container.appendChild(toast);
+            setTimeout(() => removeToast(toast), 8000);
+        }
+        function removeToast(el) { el.classList.add('fade-out'); setTimeout(() => el.remove(), 400); }
+
+        // ── Notification Panel ────────────────────────────────────────
+        let notifOpen = false;
+        function toggleNotifPanel() {
+            notifOpen = !notifOpen;
+            document.getElementById('notifPanel').classList.toggle('open', notifOpen);
+        }
+        function updateNotifCount(n = 0) {
+            const badge = document.getElementById('notifCount');
+            let c = parseInt(badge.textContent || '0') + n;
+            badge.textContent = c;
+            badge.style.display = c > 0 ? 'flex' : 'none';
+        }
+        function addRealTimeNotif(msg, type) {
+            const list = document.getElementById('notifList');
+            const empty = list.querySelector('[style*="text-align:center"]');
+            if (empty) empty.remove();
+            const item = document.createElement('div');
+            item.className = `notif-item unread ${type === 'escalation' ? 'escalation' : ''}`;
+            const icon = type === 'escalation' ? 'triangle-exclamation' : type === 'new_complaint' ? 'inbox' : 'rotate';
+            const col = type === 'escalation' ? '#ef4444' : type === 'new_complaint' ? '#6366f1' : '#3b82f6';
+            item.innerHTML = `<div class="notif-msg"><i class="fa-solid fa-${icon}" style="color:${col};"></i> ${msg}</div><div class="notif-time">just now</div>`;
+            list.insertBefore(item, list.firstChild);
+        }
+        function markAllRead() {
+            fetch('/mark_all_read', { method: 'POST' }).then(() => {
+                document.querySelectorAll('.notif-item.unread').forEach(el => el.classList.remove('unread'));
+                document.getElementById('notifCount').style.display = 'none';
+            });
+        }
+        function markOneRead(id) {
+            const el = document.getElementById(`notif-${id}`);
+            if (el && el.classList.contains('unread')) {
+                fetch(`/mark_read/${id}`, { method: 'POST' });
+                el.classList.remove('unread');
+                updateNotifCount(-1);
+            }
+        }
+
+        // ── Countdown Timers ─────────────────────────────────────────
+        document.querySelectorAll('.countdown[data-deadline]').forEach(el => {
+            updateCountdown(el);
+            setInterval(() => updateCountdown(el), 1000);
+        });
+        function updateCountdown(el) {
+            const deadline = new Date(el.dataset.deadline.endsWith('Z') ? el.dataset.deadline : el.dataset.deadline + 'Z');
+            const diff = deadline - new Date();
+            el.classList.remove('overdue', 'safe');
+            if (diff <= 0) { el.textContent = '⚠ OVERDUE'; el.classList.add('overdue'); }
+            else {
+                const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+                el.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                if (h >= 24) el.classList.add('safe');
+            }
+        }
+
+        // ── Image Modal ──────────────────────────────────────────────
+        function openImgModal(src) {
+            document.getElementById('modalImg').src = src;
+            document.getElementById('imgModal').classList.add('open');
+        }
+
+        // Close notif on outside click
+        document.addEventListener('click', e => {
+            const panel = document.getElementById('notifPanel');
+            const bell = document.getElementById('notifBell');
+            if (notifOpen && !panel.contains(e.target) && !bell.contains(e.target)) {
+                notifOpen = false; panel.classList.remove('open');
+            }
+        });
+
+        // Auto-refresh KPIs every 30 seconds
+        setInterval(updateKPIs, 30000);
+    </script>
+</body>
+
+</html>

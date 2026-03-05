@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Officer Dashboard – Xsome Complaint System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Notification Panel -->
+    <div class="notif-panel" id="notifPanel">
+        <div class="notif-panel-header">
+            <h6><i class="fa-solid fa-bell"></i> Department Notifications</h6>
+            <div style="display:flex; gap:0.5rem;">
+                <button class="btn btn-sm btn-ghost" onclick="markAllRead()"
+                    style="font-size:0.75rem; padding:0.25rem 0.6rem;">Mark All Read</button>
+                <button class="btn btn-sm btn-ghost" onclick="toggleNotifPanel()" style="padding:0.25rem 0.6rem;"><i
+                        class="fa-solid fa-times"></i></button>
+            </div>
+        </div>
+        <div class="notif-list" id="notifList">
+            {% for notif in notifications %}
+            <div class="notif-item {{ 'unread' if not notif.is_read }} {{ 'escalation' if notif.notif_type == 'escalation' }}"
+                id="notif-{{ notif.id }}" onclick="markOneRead({{ notif.id }})">
+                <div class="notif-msg">
+                    {% if notif.notif_type == 'escalation' %}<i class="fa-solid fa-triangle-exclamation"
+                        style="color:#ef4444;"></i>
+                    {% elif notif.notif_type == 'new_complaint' %}<i class="fa-solid fa-inbox"
+                        style="color:#6366f1;"></i>
+                    {% else %}<i class="fa-solid fa-rotate" style="color:#3b82f6;"></i>{% endif %}
+                    {{ notif.message }}
+                </div>
+                <div class="notif-time">{{ notif.created_at.strftime('%b %d, %H:%M') }}</div>
+            </div>
+            {% else %}
+            <div style="text-align:center; padding:3rem; color:var(--text-dim);">
+                <i class="fa-solid fa-inbox" style="font-size:2rem; margin-bottom:0.75rem; display:block;"></i>
+                All clear!
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="{{ url_for('home') }}" class="logo"><i class="fa-solid fa-building-shield"></i> Xsome Complaint
+                System</a>
+            <div class="nav-links">
+                <span style="color:var(--text-muted); font-size:0.85rem; padding:0.5rem 0.75rem;">
+                    <i class="fa-solid fa-user-tie"></i> {{ current_user.username }}
+                </span>
+                <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()">
+                    <i class="fa-solid fa-bell"></i>
+                    {% set unread = notifications|selectattr('is_read', 'eq', False)|list|length %}
+                    {% if unread > 0 %}
+                    <span class="notif-badge" id="notifCount">{{ unread }}</span>
+                    {% else %}
+                    <span class="notif-badge" id="notifCount" style="display:none;">0</span>
+                    {% endif %}
+                </button>
+                <a href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> <span>Logout</span></a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="padding:2.5rem 0 4rem;">
+        <!-- Header -->
+        <div
+            style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; margin-bottom:2rem; padding-bottom:1.5rem; border-bottom:1px solid var(--border);">
+            <div>
+                <h1 style="font-size:2.2rem; font-weight:900; letter-spacing:-0.04em;" class="animate-up">
+                    {% if current_user.department == 'Electricity' %}⚡{% elif current_user.department == 'Water' %}💧{%
+                    elif current_user.department == 'Road' %}🛣️{% elif current_user.department == 'Sanitation' %}🗑️{%
+                    else %}📋{% endif %}
+                    {{ current_user.department }} Department
+                </h1>
+                <div style="display:flex; align-items:center; gap:1rem; margin-top:0.4rem;">
+                    <span style="color:var(--text-muted);">Officer: {{ current_user.username }}</span>
+                    <span class="live-indicator"><span class="live-dot"></span> Real-Time Active</span>
+                </div>
+            </div>
+            <div class="animate-up">
+                <div style="font-size:2.5rem; font-weight:900; color:var(--primary); text-align:right;" id="totalCount">
+                    {{ complaints|length }}</div>
+                <div style="font-size:0.8rem; color:var(--text-muted);">Assigned Complaints</div>
+            </div>
+        </div>
+
+        <!-- Stats Strip -->
+        <div class="stats-grid animate-up" style="margin-bottom:2rem;">
+            <div class="kpi-card" style="--accent-bar:#ef4444;">
+                <div class="kpi-label"><i class="fa-solid fa-triangle-exclamation"></i> Escalated</div>
+                <div class="kpi-value" id="kpiEscalated">{{ complaints|selectattr('is_escalated', 'eq',
+                    True)|selectattr('status', 'ne', 'Resolved')|list|length }}</div>
+            </div>
+            <div class="kpi-card" style="--accent-bar:#f59e0b;">
+                <div class="kpi-label"><i class="fa-solid fa-clock"></i> Pending</div>
+                <div class="kpi-value">{{ complaints|selectattr('status', 'eq', 'Pending')|list|length }}</div>
+            </div>
+            <div class="kpi-card" style="--accent-bar:#3b82f6;">
+                <div class="kpi-label"><i class="fa-solid fa-spinner"></i> In Progress</div>
+                <div class="kpi-value">{{ complaints|selectattr('status', 'eq', 'In Progress')|list|length }}</div>
+            </div>
+            <div class="kpi-card" style="--accent-bar:#22c55e;">
+                <div class="kpi-label"><i class="fa-solid fa-circle-check"></i> Resolved</div>
+                <div class="kpi-value">{{ complaints|selectattr('status', 'eq', 'Resolved')|list|length }}</div>
+            </div>
+        </div>
+
+        <!-- Complaints Cards Grid -->
+        <div id="complaintsGrid"
+            style="display:grid; grid-template-columns:repeat(auto-fill, minmax(400px, 1fr)); gap:1.5rem;">
+            {% for complaint in complaints %}
+            <div class="complaint-card animate-up {% if complaint.is_escalated and complaint.status != 'Resolved' %}escalated{% endif %}"
+                id="card-{{ complaint.id }}">
+                <!-- Card Header -->
+                <div class="complaint-card-header">
+                    <div>
+                        <div style="font-size:0.72rem; color:var(--text-dim); margin-bottom:0.3rem;">#{{ complaint.id }}
+                            &bull; {{ complaint.zone }}</div>
+                        <div class="complaint-card-title">{{ complaint.title }}</div>
+                    </div>
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:0.4rem;">
+                        <span
+                            class="badge {% if complaint.priority == 'High' %}badge-danger{% elif complaint.priority == 'Medium' %}badge-warning{% else %}badge-success{% endif %}">
+                            <span class="priority-dot"
+                                style="background:{% if complaint.priority == 'High' %}#ef4444{% elif complaint.priority == 'Medium' %}#f59e0b{% else %}#22c55e{% endif %};"></span>
+                            {{ complaint.priority }}
+                        </span>
+                        {% if complaint.is_escalated and complaint.status != 'Resolved' %}
+                        <span class="badge badge-danger" style="font-size:0.65rem;"><i
+                                class="fa-solid fa-triangle-exclamation"></i> SLA BREACHED</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Card Body -->
+                <div class="complaint-card-body">
+                    <!-- Image Preview -->
+                    {% if complaint.image_file %}
+                    <img class="complaint-card-img"
+                        src="{{ url_for('static', filename='uploads/' + complaint.image_file) }}"
+                        alt="Complaint evidence"
+                        onclick="openImgModal('{{ url_for('static', filename='uploads/' + complaint.image_file) }}')">
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.75rem;">
+                        <i class="fa-solid fa-robot" style="color:var(--primary);"></i>
+                        AI Vision: {{ complaint.ai_vision_status }}
+                    </div>
+                    {% endif %}
+
+                    <!-- Description -->
+                    <p style="font-size:0.88rem; color:var(--text-muted); line-height:1.6; margin-bottom:1rem;">{{
+                        complaint.description }}</p>
+
+                    <!-- Meta -->
+                    <div class="complaint-card-meta">
+                        <span><i class="fa-solid fa-location-dot"></i> {{ complaint.location }}</span>
+                        <span><i class="fa-solid fa-calendar"></i> {{ complaint.date_posted.strftime('%b %d, %H:%M')
+                            }}</span>
+                    </div>
+
+                    <!-- Status + Countdown -->
+                    <div
+                        style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+                        <span
+                            class="badge status-display-{{ complaint.id }} {% if complaint.status == 'Resolved' %}badge-success{% elif complaint.status == 'In Progress' %}badge-info{% else %}badge-gray{% endif %}">
+                            {% if complaint.status == 'Pending' %}<i class="fa-solid fa-clock"></i>
+                            {% elif complaint.status == 'In Progress' %}<i class="fa-solid fa-spinner fa-spin"></i>
+                            {% else %}<i class="fa-solid fa-circle-check"></i>{% endif %}
+                            {{ complaint.status }}
+                        </span>
+                        {% if complaint.deadline and complaint.status != 'Resolved' %}
+                        <span class="countdown" id="cd-{{ complaint.id }}"
+                            data-deadline="{{ complaint.deadline.isoformat() }}">
+                            Calculating...
+                        </span>
+                        {% elif complaint.status == 'Resolved' %}
+                        <span class="badge badge-success" style="font-size:0.72rem;"><i
+                                class="fa-solid fa-circle-check"></i> Resolved</span>
+                        {% endif %}
+                    </div>
+
+                    {% if complaint.is_duplicate %}
+                    <div class="alert alert-warning"
+                        style="font-size:0.8rem; padding:0.5rem 0.75rem; margin-bottom:0.75rem;">
+                        <i class="fa-solid fa-copy"></i> Possible duplicate of complaint #{{ complaint.duplicate_of }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Card Footer – Status Update Form -->
+                <div class="complaint-card-footer">
+                    <form action="{{ url_for('update_status', complaint_id=complaint.id) }}" method="POST"
+                        class="flex items-center gap-3 w-full" style="gap:0.75rem;">
+                        <select name="status" class="status-select" style="flex:1;" {% if complaint.status=='Resolved'
+                            %}disabled{% endif %}>
+                            <option value="Pending" {% if complaint.status=='Pending' %}selected{% endif %}>Pending
+                            </option>
+                            <option value="In Progress" {% if complaint.status=='In Progress' %}selected{% endif %}>In
+                                Progress</option>
+                            <option value="Resolved" {% if complaint.status=='Resolved' %}selected{% endif %}>Resolved
+                            </option>
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-primary" {% if complaint.status=='Resolved'
+                            %}disabled{% endif %}>
+                            <i class="fa-solid fa-check"></i> Update
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div style="grid-column:1/-1; text-align:center; padding:6rem 0; color:var(--text-muted);">
+                <i class="fa-solid fa-inbox"
+                    style="font-size:4rem; display:block; margin-bottom:1.5rem; color:var(--border);"></i>
+                <div style="font-size:1.2rem; font-weight:700;">No complaints assigned yet.</div>
+                <p style="margin-top:0.5rem; color:var(--text-dim);">New complaints will appear here instantly via
+                    real-time updates.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div class="img-modal" id="imgModal" onclick="this.classList.remove('open')">
+        <button class="img-modal-close"><i class="fa-solid fa-times"></i></button>
+        <img id="modalImg" src="" alt="">
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        const dept = "{{ current_user.department }}";
+        const socket = io({ transports: ['websocket', 'polling'] });
+
+        socket.on('connect', () => {
+            socket.emit('join', { room: `dept_${dept}` });
+            console.log('[Socket] Officer connected to dept room:', dept);
+        });
+
+        // New complaint comes in
+        socket.on('new_complaint', data => {
+            if (data.category !== dept) return;
+            showToast('🆕 New Complaint', `#${data.complaint_id}: ${data.title}`, 'info');
+            addRealTimeNotif(`New complaint assigned: #${data.complaint_id} – ${data.title}`, 'new_complaint');
+            updateNotifCount(1);
+            injectNewCard(data);
+        });
+
+        // Escalation alert
+        socket.on('escalation_alert', data => {
+            showToast('🚨 SLA BREACH', `#${data.complaint_id}: ${data.title} is OVERDUE!`, 'danger');
+            addRealTimeNotif(`⚠ OVERDUE: #${data.complaint_id} – ${data.title}. Resolve immediately!`, 'escalation');
+            updateNotifCount(1);
+            const card = document.getElementById(`card-${data.complaint_id}`);
+            if (card) card.classList.add('escalated');
+        });
+
+        function injectNewCard(data) {
+            const grid = document.getElementById('complaintsGrid');
+            const empty = grid.querySelector('[style*="grid-column:1"]');
+            if (empty) empty.remove();
+
+            const priorityBadge = data.priority === 'High' ? 'badge-danger' : data.priority === 'Medium' ? 'badge-warning' : 'badge-success';
+            const priorityColor = data.priority === 'High' ? '#ef4444' : data.priority === 'Medium' ? '#f59e0b' : '#22c55e';
+            const deadline = new Date(data.deadline + (data.deadline.endsWith('Z') ? '' : 'Z'));
+            const imgHtml = data.image_url ? `<img class="complaint-card-img" src="${data.image_url}" alt="" onclick="openImgModal('${data.image_url}')">` : '';
+
+            const card = document.createElement('div');
+            card.className = 'complaint-card new-card-flash';
+            card.id = `card-${data.complaint_id}`;
+            card.innerHTML = `
+    <div class="complaint-card-header">
+        <div>
+            <div style="font-size:0.72rem;color:var(--text-dim);">#${data.complaint_id} &bull; ${data.zone || ''}</div>
+            <div class="complaint-card-title">${data.title}</div>
+        </div>
+        <span class="badge ${priorityBadge}">
+            <span class="priority-dot" style="background:${priorityColor};"></span>${data.priority}
+        </span>
+    </div>
+    <div class="complaint-card-body">
+        ${imgHtml}
+        <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.6;margin-bottom:1rem;">${data.description}</p>
+        <div class="complaint-card-meta">
+            <span><i class="fa-solid fa-location-dot"></i> ${data.location}</span>
+            <span><i class="fa-solid fa-calendar"></i> just now</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+            <span class="badge badge-gray status-display-${data.complaint_id}"><i class="fa-solid fa-clock"></i> Pending</span>
+            <span class="countdown" id="cd-${data.complaint_id}" data-deadline="${data.deadline}">Calculating...</span>
+        </div>
+    </div>
+    <div class="complaint-card-footer">
+        <form action="/update_status/${data.complaint_id}" method="POST" class="flex items-center w-full" style="gap:0.75rem;">
+            <select name="status" class="status-select" style="flex:1;">
+                <option value="Pending" selected>Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Resolved">Resolved</option>
+            </select>
+            <button type="submit" class="btn btn-sm btn-primary"><i class="fa-solid fa-check"></i> Update</button>
+        </form>
+    </div>`;
+            grid.insertBefore(card, grid.firstChild);
+            startCountdownEl(document.getElementById(`cd-${data.complaint_id}`));
+
+            const total = document.getElementById('totalCount');
+            total.textContent = parseInt(total.textContent) + 1;
+        }
+
+        // ── Toast ──────────────────────────────────────────────────────
+        function showToast(title, msg, type = 'info') {
+            const colors = { info: '#3b82f6', success: '#22c55e', warning: '#f59e0b', danger: '#ef4444' };
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.setProperty('--toast-color', colors[type] || colors.info);
+            toast.innerHTML = `<button class="toast-close" onclick="removeToast(this.parentElement)">&times;</button>
+        <div class="toast-title">${title}</div>
+        <div class="toast-body">${msg}</div>`;
+            container.appendChild(toast);
+            setTimeout(() => removeToast(toast), 7000);
+        }
+        function removeToast(el) { el.classList.add('fade-out'); setTimeout(() => el.remove(), 400); }
+
+        // ── Notification Panel ──────────────────────────────────────────
+        let notifOpen = false;
+        function toggleNotifPanel() {
+            notifOpen = !notifOpen;
+            document.getElementById('notifPanel').classList.toggle('open', notifOpen);
+        }
+        function updateNotifCount(n = 0) {
+            const badge = document.getElementById('notifCount');
+            let c = parseInt(badge.textContent || '0') + n;
+            badge.textContent = c;
+            badge.style.display = c > 0 ? 'flex' : 'none';
+        }
+        function addRealTimeNotif(msg, type) {
+            const list = document.getElementById('notifList');
+            const empty = list.querySelector('[style*="text-align:center"]');
+            if (empty) empty.remove();
+            const item = document.createElement('div');
+            item.className = `notif-item unread ${type === 'escalation' ? 'escalation' : ''}`;
+            const icon = type === 'escalation' ? 'triangle-exclamation' : 'inbox';
+            const col = type === 'escalation' ? '#ef4444' : '#6366f1';
+            item.innerHTML = `<div class="notif-msg"><i class="fa-solid fa-${icon}" style="color:${col};"></i> ${msg}</div><div class="notif-time">just now</div>`;
+            list.insertBefore(item, list.firstChild);
+        }
+        function markAllRead() {
+            fetch('/mark_all_read', { method: 'POST' }).then(() => {
+                document.querySelectorAll('.notif-item.unread').forEach(el => el.classList.remove('unread'));
+                document.getElementById('notifCount').style.display = 'none';
+            });
+        }
+        function markOneRead(id) {
+            const el = document.getElementById(`notif-${id}`);
+            if (el && el.classList.contains('unread')) {
+                fetch(`/mark_read/${id}`, { method: 'POST' });
+                el.classList.remove('unread');
+                updateNotifCount(-1);
+            }
+        }
+
+        // ── Countdown Timers ────────────────────────────────────────────
+        function startCountdowns() {
+            document.querySelectorAll('.countdown[data-deadline]').forEach(startCountdownEl);
+        }
+        function startCountdownEl(el) {
+            if (!el) return;
+            updateCountdown(el);
+            const interval = setInterval(() => updateCountdown(el), 1000);
+            el._timer = interval;
+        }
+        function updateCountdown(el) {
+            const deadline = new Date(el.dataset.deadline.endsWith('Z') ? el.dataset.deadline : el.dataset.deadline + 'Z');
+            const diff = deadline - new Date();
+            el.classList.remove('overdue', 'safe');
+            if (diff <= 0) { el.textContent = '⚠ OVERDUE'; el.classList.add('overdue'); }
+            else {
+                const h = Math.floor(diff / 3600000);
+                const m = Math.floor((diff % 3600000) / 60000);
+                const s = Math.floor((diff % 60000) / 1000);
+                el.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                if (h >= 24) el.classList.add('safe');
+            }
+        }
+        startCountdowns();
+
+        // Image modal
+        function openImgModal(src) {
+            document.getElementById('modalImg').src = src;
+            document.getElementById('imgModal').classList.add('open');
+        }
+
+        // Close notif on outside click
+        document.addEventListener('click', e => {
+            const panel = document.getElementById('notifPanel');
+            const bell = document.getElementById('notifBell');
+            if (notifOpen && !panel.contains(e.target) && !bell.contains(e.target)) {
+                notifOpen = false;
+                panel.classList.remove('open');
+            }
+        });
+    </script>
+</body>
+
+</html>
