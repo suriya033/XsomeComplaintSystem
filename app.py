@@ -23,9 +23,17 @@ import PIL.Image
 # =============================================================================
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'XsomeComplaintSystem_SuperSecret_2026!'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///complaints_v3.db'
+# Path for databases and uploads on serverless (Vercel)
+IS_VERCEL = "VERCEL" in os.environ
+
+if IS_VERCEL:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/complaints_v3.db'
+    app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///complaints_v3.db'
+    app.config['UPLOAD_FOLDER'] = 'static/uploads'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx'}
 
 # Flask-Mail (Gmail SMTP)
@@ -45,7 +53,11 @@ db = SQLAlchemy(app)
 mail = Mail(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+# Disable SocketIO for Vercel/Serverless
+if IS_VERCEL:
+    socketio = SocketIO(app, cors_allowed_origins="*") # No threading/eventlet
+else:
+    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # =============================================================================
 # DATABASE MODELS
@@ -782,8 +794,10 @@ with app.app_context():
     db.create_all()
 
 if __name__ == '__main__':
-
-    # Start SLA monitoring background thread
-    monitor = threading.Thread(target=sla_monitor_thread, daemon=True)
-    monitor.start()
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    # Background threads don't work well on Vercel
+    if not IS_VERCEL:
+        monitor = threading.Thread(target=sla_monitor_thread, daemon=True)
+        monitor.start()
+        socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    else:
+        app.run()
